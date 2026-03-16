@@ -1,7 +1,7 @@
-function createCart(){
-    console.log("Creating cart...");
+function getCartById() {
+    console.log("cart controller");
 }
 
 module.exports = {
-    createCart
+    getCartById
 }

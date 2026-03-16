@@ -1,10 +1,8 @@
 const express = require('express');
-const { createCart } = require('../controllers/cartController');
+const { getCartById } = require('../controllers/cartController.js');
 
 const cartRouter = express.Router();
 
-cartRouter.post('/', createCart);
-
-
+cartRouter.get('/:id', getCartById);
 
 module.exports = cartRouter;

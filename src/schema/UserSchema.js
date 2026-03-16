@@ -1,37 +1,55 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const userSchema = new mongoose.Schema({
+    firstName: {
+        type: String,
+        required: [true, "First Name is required"],
+        minlength: [5, "First name must be atleast 5 character long"],
+        lowercase: true,
+        trim: true, // if the user gives extra spaces then it will automatically remove it
+        maxlength: [20, "First name should be less than or equal to 20 characters"]
+    },
 
-const UserSchema = new mongoose.Schema({
-    FirstName:{
-        type:String,
-        required:[true, "first name is compulsory"],
-        minlength:[5,"min length of 5 characters required"],
-        lowercase:true
+    lastName: {
+        type: String,
+        required: [true, "First Name is required"],
+        minlength: [5, "First name must be atleast 5 character long"],
+        lowercase: true,
+        trim: true, // if the user gives extra spaces then it will automatically remove it
+        maxlength: [20, "First name should be less than or equal to 20 characters"]
     },
-    LastName:{
-        type:String,
-        lowercase:true
+
+    mobileNumber: {
+        type: String,
+        trim: true,
+        maxlength: [10, "Phone number should be of length 10"],
+        minlength: [10, "Phone number should be of length 10"],
+        unique: [true, "Phone number is already in use"],
+        required: [true, "Phone number should be provided"]
     },
-    mobileNumber:{
-        type:String,
-        required:[true, "mobile number is compulsory"],
-        unique:true,
-        minlength:[10,"must be 10 digits"],
-        maxlength:[10,"must be 10 digits"]
+    email: {
+        type: String,
+        trim: true,
+        required: [true, "Email should be provoided"],
+        unique: [true, "Email is already in use"],
+        match:  [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address']
     },
-    email:{
-        type:String,
-        required:[true, "email is compulsory"],
-        unique:true
-    },
-    password:{
-        type:String,
-        required:[true, "password is compulsory"],
-        minlength:[8,"minimum 8 characters required"]
+    password: {
+        type: String,
+        required: [true, "Password should be provided"],
+        minlength: [6, "Password should be minimum 6 character long"]
     }
-},{
-    timestamps:true
-})
+}, {
+    timestamps: true
+});
 
-const User = mongoose.model("User", UserSchema);
+
+userSchema.pre('save', async function () {
+    // here u can modify your user before it is ssaved in mongodb
+    const hashedPassword = await bcrypt.hash(this.password, 10);
+    this.password = hashedPassword;
+});
+
+const User = mongoose.model("User", userSchema); // collection
 
 module.exports = User;

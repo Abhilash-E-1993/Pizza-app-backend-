@@ -1,4 +1,4 @@
-const User = require('../schema/userSchema');
+const User = require('../schema/UserSchema');
 
 async function findUser(query = {}) {
   return User.findOne(query);

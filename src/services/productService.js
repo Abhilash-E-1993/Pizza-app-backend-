@@ -1,7 +1,7 @@
 const cloudinary=require('../config/cloudinaryConfig');
 const fs=require('fs/promises');
 const { createProduct, getProduct, deleteProduct, getAllProducts } = require('../repository/productRepository');
-const BadRequestError = require('../utils/badRequesterror');
+const BadRequestError = require('../utils/badRequestError');
 
 async function productservice(product_details,file){
     if(!file){

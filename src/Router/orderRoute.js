@@ -5,7 +5,7 @@ const {
   getUserOrdersController,
   getOrderByIdController,
   updateOrderStatusController,
-} = require('../controlller/orderController');
+} = require('../controller/orderController');
 
 const {
   isLoggedIn

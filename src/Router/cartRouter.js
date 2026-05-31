@@ -5,7 +5,7 @@ const {
   addToCartController,
   removeFromCartController,
   clearCartController,
-} = require('../controlller/cartController');
+} = require('../controller/cartController');
 
 const {
   isLoggedIn

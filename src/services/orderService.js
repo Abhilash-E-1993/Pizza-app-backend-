@@ -1,81 +1,75 @@
-const { getCartByUserId, clearCart } = require("../repositories/cartRepository");
-const NotFoundError = require("../utils/notFoundError");
-const BadRequestError = require('../utils/badRequestError');
-const { findUser } = require("../repositories/userRepository");
-const { createNewOrder, getOrdersByUserId, getOrderById, updateOrderStatus } = require("../repositories/orderRepository");
-const InternalServerError = require("../utils/internalServerError");
+const { findCart } = require('../repository/cartRepository');
+const { createOrder, getOrderByUserId, getOrderdetails, UpdateOrderstatus } = require('../repository/orderRepository');
+const { findUser } = require('../repository/userRepository');
 
-async function createOrder(userId, paymentMethod) {
+async function Createorder(userId, paymentMethod) {
+  const cart = await findCart(userId);
+  const user = await findUser({ _id: userId });
 
-    
-    const cart = await getCartByUserId(userId);
-    const user = await findUser({ _id: cart.user});
-    console.log(cart);
-    console.log(user);
-    if(!cart) {
-        throw new NotFoundError("Cart");
-    }
+  if (!cart) {
+    throw { reason: 'Cart not found for this User', statuscode: 404 };
+  }
 
-    if(cart.items.length === 0) {
-        throw new BadRequestError(["Cart is empty, please add some items to the cart"]);
-    }
+  if (!cart.items || cart.items.length === 0) {
+    throw { reason: 'cart is empty.Please add some products', statuscode: 400 };
+  }
 
-    const orderObject = {};
+  const orderObj = {
+    userId: cart.userId,
+    items: cart.items,
+    TotalPrice: 0,
+    address: user?.address,
+    status: 'ORDERED',
+    paymentMethod: paymentMethod || 'CASH_ON_DELIVERY',
+  };
 
-    orderObject.user = cart.user;
-    orderObject.items = cart.items.map(cartitem => {
-        return {product: cartitem.product._id, quantity: cartitem.quantity}
-    });
+  orderObj.TotalPrice = cart.items.reduce((total, cartItem) => {
+    const price = cartItem.product?.price || 0;
+    return total + cartItem.quantity * price;
+  }, 0);
 
-    orderObject.status = "ORDERED";
-    orderObject.totalPrice = 0;
+  const order = await createOrder(orderObj);
 
-    cart.items.forEach((cartItem) => {
-        orderObject.totalPrice += cartItem.quantity * cartItem.product.price;
-    });
+  if (!order) {
+    throw { reason: 'order is not placed', statuscode: 500 };
+  }
 
-    orderObject.address = user.address;
-    orderObject.paymentMethod = paymentMethod;
-
-    const order = await createNewOrder(orderObject);
-
-    if(!order) {
-        throw new InternalServerError();
-    }
-
-    await clearCart(userId);
-
-    return order;
-
+  return order;
 }
 
-async function getAllOrdersCreatedByUser(userId) {
-    const orders = await getOrdersByUserId(userId);
-    if(!orders) {
-        throw new NotFoundError("Orders");
-    }
-    return orders;
+async function getallOrders(userid) {
+  const orders = await getOrderByUserId(userid);
+
+  if (!orders || orders.length === 0) {
+    throw { reason: 'NO oders found', statuscode: 404 };
+  }
+
+  return orders;
 }
 
-async function getOrderDetailsById(orderId) {
-    const order = await getOrderById(orderId);
-    if(!order) {
-        throw new NotFoundError("Orders");
-    }
-    return order;
+async function getOrderByid(orderId) {
+  const order = await getOrderdetails(orderId);
+
+  if (!order) {
+    throw { reason: 'NO oders found', statuscode: 404 };
+  }
+
+  return order;
 }
 
-async function updateOrder(orderId, status) {
-    const order = await updateOrderStatus(orderId, status);
-    if(!order) {
-        throw new NotFoundError("Orders");
-    }
-    return order;
+async function updateOrderstatus(orderId, status) {
+  const order = await UpdateOrderstatus(orderId, status);
+
+  if (!order) {
+    throw { reason: 'Not able to update the order status', statuscode: 400 };
+  }
+
+  return order;
 }
 
 module.exports = {
-    createOrder,
-    getAllOrdersCreatedByUser,
-    getOrderDetailsById,
-    updateOrder
-}
+  Createorder,
+  getallOrders,
+  getOrderByid,
+  updateOrderstatus,
+};

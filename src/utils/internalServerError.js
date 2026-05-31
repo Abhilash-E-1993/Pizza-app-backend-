@@ -1,9 +1,11 @@
-const AppError = require("./appError");
+const Apperror = require("./appError");
 
-class InternalServerError extends AppError {
-    constructor() {
-        super(`It's not you it's our server where something went wrong`, 500);
+class internalServererror extends Apperror{
+    constructor(){
+
+       
+        super("Internal server Error",500);
+        
     }
 }
-
-module.exports = InternalServerError;
+module.exports=internalServererror;

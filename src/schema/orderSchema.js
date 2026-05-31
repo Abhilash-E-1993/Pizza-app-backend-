@@ -1,47 +1,48 @@
-const mongoose = require('mongoose');
+const mongoose=require('mongoose');
 
-const orderSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+const OrderSchema=new mongoose.Schema({
+    userId:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'User',
+        requiured:true
     },
-    items: [
-        {
-            product: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Product',
-                required: true
-            },
-            quantity: {
-                type: Number,
-                required: true,
-                default: 1
+    items:[
+            {
+                product:{
+                    type:mongoose.Schema.Types.ObjectId,
+                    ref:'product',
+                    required:true
+                },
+                quantity:{
+                    type:Number,
+                    required:true,
+                    default:1,
+                }
             }
-        }
-    ],
-    totalPrice: {
-        type: Number,
-        required: true,
+        ],
+    TotalPrice:{
+        type:Number,
+        required:true,
     },
-    status: {
-        type: String,
-        default: "ORDERED",
-        enum: ["ORDERED", "CANCELLED", "DELIVERED", "PROCESSING", "OUT_FOR_DELIVERY"]
+
+    status:{
+        type:String,
+        enum:["ORDERED","CANCELLED","DELIVERD","PROCESSING","OUT_OF_DELIVERY"],
+        default:"ORDERED"
     },
-    address: {
-        type: String,
-        minLength: [10, "Address should be of atleast 10 characters"]
+    address:{
+        type:String,
+        minLength:[10,"address should be atleast of 10 characters"],
     },
-    paymentMethod: {
-        type: String,
-        enum: ["ONLINE", "CASH"],
-        default: "CASH"
+    paymentMethod:{
+        type:String,
+        enum:["CASH_ON_DELIVERY","ONLINE"],
+        default:"CASH_ON_DELIVERY",
     }
-}, {
-    timestamps: true
+
+},{
+    timestamps:true,
 });
 
-const Order = mongoose.model('Order', orderSchema);
-
-module.exports = Order;
+const Order=mongoose.model("Order",OrderSchema);
+module.exports=Order;

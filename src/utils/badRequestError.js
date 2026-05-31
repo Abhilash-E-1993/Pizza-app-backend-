@@ -1,14 +1,13 @@
-const AppError = require("./appError");
+const { param } = require("../Router/userRouter");
+const Apperror = require("./appError");
 
-class BadRequestError extends AppError {
-    constructor(invalidParams) {
-        // invalidParams: []
+class BadRequestError extends Apperror{
+    constructor(invalidParams){
 
-        let message = "";
-        invalidParams.forEach(params => message += `${params}\n`);
-
-        super(`The request has the following invalid parameters \n${invalidParams}`, 400);
+        let message='';
+        invalidParams.forEach(param=> message += `${param}\n `);
+        super(`this request has the followng invalid parameters ${invalidParams}\n`,400);
+        
     }
 }
-
-module.exports = BadRequestError;
+module.exports=BadRequestError;

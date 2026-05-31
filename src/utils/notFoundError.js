@@ -1,9 +1,11 @@
-const AppError = require("./appError");
+const Apperror = require("./appError");
 
-class NotFoundError extends AppError {
-    constructor(resource) {
-        super(`Not able to find ${resource}`, 404);
+class NotFoundError extends Apperror{
+    constructor(resource){
+
+       
+        super(`not able to find for the resource:${resource}`,404);
+        
     }
 }
-
-module.exports = NotFoundError;
+module.exports=NotFoundError;

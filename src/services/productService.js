@@ -1,75 +1,79 @@
-const cloudinary = require('../config/cloudinaryConfig');
-const ProductRepository = require('../repositories/productRepository');
-const fs = require('fs/promises');
-const mongoose = require('mongoose');
+const cloudinary=require('../config/cloudinaryConfig');
+const fs=require('fs/promises');
+const { createProduct, getProduct, deleteProduct, getAllProducts } = require('../repository/productRepository');
+const BadRequestError = require('../utils/badRequesterror');
 
-const InternalServerError = require('../utils/internalServerError');
-const NotFoundError = require('../utils/notFoundError');
-const AppError = require('../utils/appError');
-
-async function createProduct(productDetails) {
-
-    let productImage;
-
-    // ✅ FIX: correct field name
-    const imagePath = productDetails.productImage;
-
-    if (imagePath) {
-        try {
-            const cloudinaryResponse = await cloudinary.uploader.upload(imagePath);
-            productImage = cloudinaryResponse.secure_url;
-
-            // delete local file
-            await fs.unlink(imagePath);
-
-        } catch (error) {
-            console.log(error);
-            throw new InternalServerError();
+async function productservice(product_details,file){
+    if(!file){
+        throw new BadRequestError(['image file is not given']);
+        
+    }
+   
+    const image=await cloudinary.uploader.upload(file.path);
+    const data={
+        productName:product_details.productName,
+        image:image.url,
+        price:product_details.price,
+        description:product_details.description,
+        inStock:product_details.inStock,
+        category:product_details.category
+    };
+    await fs.unlink(file.path);
+    try{
+        const response=await createProduct(data);
+        if(!response){
+            throw{reason:"product is not created",statuscode:500};
         }
+        return response;
+    }catch(err){
+        console.log(err);
+        throw{reason:"error while creating",statuscode:500};
     }
+    
 
-    const product = await ProductRepository.createProduct({
-        ...productDetails,
-        productImage: productImage || productDetails.productImage // ✅ safe fallback
-    });
-
-    return product;
+}
+async function getProductById(id){
+    try{
+        const response=await getProduct(id);
+        if(!response){
+            throw{reason:"unable to get product",statuscode:404};
+        }
+        return response;
+    }catch(err){
+        console.log(err);
+        throw{reason:"unable to find it",statuscode:404};
+    }
 }
 
-async function getProductById(productId) {
-
-    // ✅ prevent crash
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-        throw new AppError("Invalid product id", 400);
+async function getProductsdata(){
+    try{
+        const response=await getAllProducts();
+        if(!response){
+            throw{reason:"unable to get product",statuscode:404};
+        }
+        return response;
+    }catch(err){
+        console.log(err);
+        throw{reason:"unable to find it",statuscode:404};
     }
-
-    // ✅ use lean inside repo OR here
-    const response = await ProductRepository.getProductById(productId);
-
-    if (!response) {
-        throw new NotFoundError('Product');
+}
+async function deleteProductById(id){
+    try{
+        const response=await deleteProduct(id);
+        console.log(response);
+        if(!response){
+            throw{reason:"unable to delete product",statuscode:400};
+        }
+        return response;
+    }catch(err){
+        console.log(err);
+        throw{reason:"unable to delete it",statuscode:400};
     }
-
-    return response;
 }
 
-async function deleteProductById(productId) {
-
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-        throw new AppError("Invalid product id", 400);
-    }
-
-    const response = await ProductRepository.deleteProductById(productId);
-
-    if (!response) {
-        throw new NotFoundError('Product');
-    }
-
-    return response;
+module.exports={
+productservice,
+getProductById,
+deleteProductById,
+getProductsdata
 }
-
-module.exports = {
-    createProduct,
-    getProductById,
-    deleteProductById
-};

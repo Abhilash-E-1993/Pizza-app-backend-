@@ -1,38 +1,38 @@
-const { findUser, createUser } = require("../repositories/userRepository");
+
+const bcrypt = require('bcrypt');
+const { createCart } = require('../repository/cartRepository');
+const { findUser, createUser } = require('../repository/userRepository');
 
 async function registerUser(userDetails) {
-    console.log("Hitting service layer")
-    // It will create a brand new user in the db
-
-    // 1. We need to check if the user with this email and mobile number already exists or not
+  try {
     const user = await findUser({
-        email: userDetails.email,
-        mobileNumber: userDetails.mobileNumber
+      email: userDetails.email,
+      mobileNumber: userDetails.mobileNumber,
     });
 
-    if(user) {
-        // we found a user
-        throw { reason: 'User with the given email and mobile number already exist', statusCode: 400 }
+    if (user) {
+      throw { reason: 'user with this email or mobile number already exists', statuscode: 400 };
     }
-    
-    // 2. If not then create the user in the database
+
+    const hashedPassword = await bcrypt.hash(userDetails.password, 10);
+
     const newUser = await createUser({
-        email: userDetails.email,
-        password: userDetails.password,
-        firstName: userDetails.firstName,
-        lastName: userDetails.lastName,
-        mobileNumber: userDetails.mobileNumber
+      ...userDetails,
+      password: hashedPassword,
+      role: userDetails.role || 'USER',
     });
 
-    if(!newUser) {
-        throw {reason: 'Something went wrong, cannot create user', statusCode: 500}
+    if (!newUser) {
+      throw { reason: 'user creation failed', statuscode: 500 };
     }
 
-    // 3. retuern the details of created user
+    const newUserId = newUser._id;
+    await createCart(newUserId);
     return newUser;
+  } catch (err) {
+    console.log(err);
+    throw { reason: 'error while registering the user', statuscode: 500 };
+  }
 }
 
-
-module.exports = {
-    registerUser
-};
+module.exports = registerUser;

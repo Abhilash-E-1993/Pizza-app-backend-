@@ -1,53 +1,26 @@
-const { findUser } = require("../repositories/userRepository");
-const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { JWT_SECRET, JWT_EXPIRY } = require("../config/serverConfig");
+const { findUser } = require("../repository/userRepository");
+const bcrypt=require('bcrypt');
+const { SECRET_KEY, JWT_EXPIRY } = require("../config/serverconfig");
 
-async function loginUser(authDetails) {
+async function loginUser(userDetails){
+    const email=userDetails.email;
+    const password=userDetails.password;
 
-    const email = authDetails.email;
-    const plainPassword = authDetails.password;
-
-    // 1️⃣ Check if a user exists with the given email
-    const user = await findUser({ email });
-
-    if (!user) {
-        throw {
-            message: "No user found with the given email",
-            statusCode: 404
-        };
+    const user=await findUser({email});
+    if(!user){
+        throw{message:"user with the given email not found" ,statuscode: 404};
+        
     }
 
-    // 2️⃣ Compare plain password with hashed password stored in DB
-    const isPasswordValidated = await bcrypt.compare(
-        plainPassword,
-        user.password
-    );
-
-    if (!isPasswordValidated) {
-        throw {
-            message: "Invalid password, please try again",
-            statusCode: 401
-        };
+    const isPasswordvalid=await bcrypt.compare(password,user.password);
+    if(!isPasswordvalid){
+        throw{message:"given password is not valid.please try again",statuscode:401};
     }
+    const Role=user.role? user.role: "USER";
 
-    // 3️⃣ Generate JWT token including role
-    const token = jwt.sign(
-        {
-            email: user.email,
-            id: user._id,
-            role: user.role
-        },
-        JWT_SECRET,
-        {
-            expiresIn: JWT_EXPIRY
-        }
-    );
+    const token=jwt.sign({email:user.email,id:user._id,role:Role},SECRET_KEY,{expiresIn:JWT_EXPIRY});
+    return {token,Role,userData:{email:user.email,firstName:user.firstName}};
 
-    // 4️⃣ Return token
-    return token;
 }
-
-module.exports = {
-    loginUser
-};
+module.exports=loginUser;

@@ -9,7 +9,7 @@ async function login(req, res) {
     return res
       .cookie('token', result.token, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'none',
       })
       .status(200)
       .json({
@@ -36,6 +36,7 @@ function logout(req, res) {
   return res
     .clearCookie('token')
     .status(200)
+    
     .json({
       success: true,
       message: 'logout successful'

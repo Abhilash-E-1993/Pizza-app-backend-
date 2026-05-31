@@ -1,5 +1,5 @@
 const mongoose=require('mongoose');
-const serverConfig=require('./serverconfig');
+const serverConfig=require('./serverConfig');
 
 async function connectDB(){
     try{

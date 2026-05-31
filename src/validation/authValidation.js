@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { SECRET_KEY } = require('../config/serverconfig');
+const { SECRET_KEY } = require('../config/serverConfig');
 
 function isLoggedIn(req, res, next) {
   const token = req.cookies?.token;

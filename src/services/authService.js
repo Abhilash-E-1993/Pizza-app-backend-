@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { findUser } = require("../repository/userRepository");
 const bcrypt=require('bcrypt');
-const { SECRET_KEY, JWT_EXPIRY } = require("../config/serverconfig");
+const { SECRET_KEY, JWT_EXPIRY } = require("../config/serverConfig");
 
 async function loginUser(userDetails){
     const email=userDetails.email;

@@ -13,7 +13,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: process.env.FRONTEND_URL ,
     credentials: true,
   })
 );
@@ -36,5 +36,6 @@ app.get('/ping', (req, res) => {
 
 app.listen(serverConfig.PORT, async () => {
   await connectDB();
+ 
   console.log(`server is running at port ${serverConfig.PORT}`);
 });

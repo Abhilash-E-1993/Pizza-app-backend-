@@ -9,15 +9,15 @@ async function login(req, res) {
     return res
       .cookie('token', result.token, {
         httpOnly: true,
-        sameSite: 'lax',
-        secure: false,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: process.env.NODE_ENV === 'production',
         path: '/',
       })
       .status(200)
       .json({
         success: true,
         message: 'login successful',
-
+        token: result.token,
         data: {
           role: result.Role,
           userData: result.userData,

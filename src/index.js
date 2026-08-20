@@ -12,6 +12,9 @@ const orderrouter = require('./Router/orderRoute');
 
 const app = express();
 
+// Trust reverse proxy (e.g. Render, Heroku) so secure cookies and headers work correctly
+app.set('trust proxy', 1);
+
 // hide implementation details + gzip all responses (big perf win for JSON payloads)
 app.disable('x-powered-by');
 app.use(compression());

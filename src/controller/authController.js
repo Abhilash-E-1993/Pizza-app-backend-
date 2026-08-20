@@ -1,6 +1,6 @@
 const loginUser = require('../services/authService');
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
 
 // cookie options shared by login + logout (must match exactly or the browser won't clear it)
 const COOKIE_OPTIONS = {

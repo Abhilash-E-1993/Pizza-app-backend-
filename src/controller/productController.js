@@ -38,6 +38,9 @@ async function getAllProducts(req, res) {
 
     const products = await getProductsdata();
 
+    // menu rarely changes — let browsers/CDNs cache it briefly (express ETag still applies)
+    res.set('Cache-Control', 'public, max-age=60');
+
     return res.status(200).json({
       success: true,
       message: 'products fetched successfully',

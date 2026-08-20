@@ -17,8 +17,8 @@ async function createOrderController(req, res) {
 
     const order = await Createorder(
       userId,
-      req.body.paymentMethod ||
-      'CASH_ON_DELIVERY'
+      req.body.paymentMethod || 'CASH_ON_DELIVERY',
+      req.body.address // optional: lets the frontend collect a delivery address at checkout
     );
 
     return res.status(201).json({

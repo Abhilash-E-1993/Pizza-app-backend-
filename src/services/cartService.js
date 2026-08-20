@@ -1,88 +1,101 @@
-const {findCart} = require("../repository/cartRepository");
+const { findCartDoc, findCartLean, createCart } = require("../repository/cartRepository");
 const { getProduct } = require("../repository/productRepository");
 
-async function getcart(cartDetails){
-    try{
-        const response=await findCart(cartDetails);
-       
-        if(!response){
-            throw{reason:"Not getting the Cart",statuscode:500};
-        }
-        return response;
-    }catch(err){
-        console.log(err);
-        throw{reason:"error while fetching the cart",statuscode:500};
-    }
-
+// create a cart exactly once per user; if two requests race, the unique
+// index on userId makes the loser refetch instead of crashing
+async function createCartSafe(userId) {
+  try {
+    return await createCart(userId);
+  } catch (err) {
+    if (err && err.code === 11000) return findCartDoc(userId);
+    throw err;
+  }
 }
 
-async function addTocartOrRemove(userId,productId,shouldadd){
-    let quantityval=(shouldadd=="add")?1:-1;
-   
-    const cart=await getcart(userId);
-    const product=await getProduct(productId);
-    if(!product){
-        throw{reason:"product is not found",statuscode:404};
-    }
-    if(!product.inStock && product.quantity<=0){
-        throw{reason:"product is not in stock",statuscode:400};
-    }
-    //check if product already in the cart;
-    let foundProduct=false;
+// fast read path: lean + auto-create a cart if the user doesn't have one yet
+async function getcart(userId) {
+  let cart = await findCartLean(userId);
 
-     cart.items.forEach((item)=>{
-        if(item.product._id==productId){
-            foundProduct=true;
-            if(product.quantity>=item.quantity+1 || quantityval<0) {
-                
-                item.quantity+=quantityval
-                
-                if(item.quantity<=0){
-                    cart.items=cart.items.filter(item=>item.product._id != productId);
-                   
-                    return ;
-                    
-                }
-            }
-          
-            else{
-                throw{reason:"requested item not available",statuscode:404}
-            }
-            
-            
-        }
-        
-    });
-    if(!foundProduct){
-        if(shouldadd=="add"){
-            cart.items.push({
-            product:product,
-            quantity:1
-        });
-        
-    }
-        }
-    await cart.save();
-    return cart;
+  if (!cart) {
+    await createCartSafe(userId);
+    cart = await findCartLean(userId);
+  }
 
+  // hide items whose product was deleted from the store
+  if (cart && Array.isArray(cart.items)) {
+    cart.items = cart.items.filter((item) => item.product);
+  }
+
+  return cart;
 }
 
-async function ClearCart(userId){
-    try{
-        const response=await findCart(userId);
-        if(!response){
-            throw{reason:"unable to find cart",statuscode:404}
-    }
-    response.items=[];
-    await response.save();
-    return response;
-    }catch(err){
-        console.log(err);
-        throw{reason:"unable to clear cart",statuscode:400}
-    }
+async function getCartDocForUser(userId) {
+  let cart = await findCartDoc(userId);
+  if (!cart) cart = await createCartSafe(userId);
+  return cart;
 }
-module.exports={
-    getcart,
-    addTocartOrRemove,
-    ClearCart,
+
+async function addTocartOrRemove(userId, productId, shouldadd) {
+  const isAdd = shouldadd === 'add';
+  const quantityval = isAdd ? 1 : -1;
+
+  const cart = await getCartDocForUser(userId);
+
+  let product = null;
+  try {
+    product = await getProduct(productId);
+  } catch (err) {
+    product = null; // invalid ObjectId etc.
+  }
+
+  if (isAdd) {
+    if (!product) {
+      throw { reason: 'product is not found', statuscode: 404 };
+    }
+    // old code used && so out-of-stock products could still be added
+    if (!product.inStock || product.quantity <= 0) {
+      throw { reason: 'product is not in stock', statuscode: 400 };
+    }
+  }
+
+  const pid = String(productId);
+  const itemIndex = cart.items.findIndex(
+    (item) => item.product && String(item.product) === pid
+  );
+
+  if (itemIndex === -1) {
+    if (isAdd) {
+      cart.items.push({ product: product._id, quantity: 1 });
+    }
+    // removing an item that isn't in the cart is a safe no-op (idempotent)
+  } else {
+    const newQuantity = cart.items[itemIndex].quantity + quantityval;
+
+    if (newQuantity <= 0) {
+      cart.items.splice(itemIndex, 1);
+    } else {
+      if (isAdd && product && newQuantity > product.quantity) {
+        throw { reason: 'requested item quantity not available', statuscode: 400 };
+      }
+      cart.items[itemIndex].quantity = newQuantity;
+    }
+  }
+
+  await cart.save();
+
+  // return the populated cart so the frontend can render it directly
+  return getcart(userId);
 }
+
+async function ClearCart(userId) {
+  const cart = await getCartDocForUser(userId);
+  cart.items = [];
+  await cart.save();
+  return getcart(userId);
+}
+
+module.exports = {
+  getcart,
+  addTocartOrRemove,
+  ClearCart,
+};

@@ -53,7 +53,7 @@ Example `.env`:
 PORT=5000
 DB_URL=mongodb://localhost:27017/pizza-app
 JWT_SECRET=supersecret
-JWT_EXPIRY=1d
+JWT_EXPIRY=7d
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
@@ -69,7 +69,7 @@ Assuming the server is running locally on the configured port, the base URL is:
 http://localhost:<PORT>
 ```
 
-The current backend allows CORS from `http://localhost:5173` and sends cookies, so the frontend should use `credentials: 'include'` for protected routes.
+The current backend allows CORS from the `FRONTEND_URL` env variable plus `http://localhost:5173`, `http://localhost:4173` and `http://localhost:3000` for local development, and sends cookies, so the frontend should use `credentials: 'include'` for protected routes.
 
 ---
 
@@ -111,10 +111,23 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 
 - `POST /auth/logout`
 - Behavior:
-  - Clears the `token` cookie
+  - Clears the `token` cookie (using the same cookie attributes it was set with)
 - Success response:
   - `200 OK`
   - `{ success: true, message: 'logout successful' }`
+
+### Verify Session
+
+- `GET /auth/verify`
+- Auth: required (`token` cookie or `Authorization: Bearer <token>`)
+- Behavior:
+  - Validates the current JWT and returns the logged-in user's basic data
+  - Use it on app load to restore the session (the cookie is httpOnly, so JS cannot read it)
+- Success response:
+  - `200 OK`
+  - `{ success: true, data: { id, email, role } }`
+- Error responses:
+  - `401` if the token is missing, invalid or expired
 
 ---
 
@@ -139,10 +152,15 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 
 - Success response:
   - `201 Created`
-  - `{ message: 'user registered successfully', user }`
+  - `{ success: true, message: 'user registered successfully', user }`
+  - `user` never contains the password hash
+
+- Notes:
+  - The `role` field is ignored on public registration — every new user is created as `USER`. To create an admin, set `role: 'ADMIN'` directly in the database.
 
 - Error responses:
-  - `400` if user email/mobile already exists
+  - `400` if user email/mobile already exists (message says which one)
+  - `400` if required fields are missing or password is shorter than 6 characters
 
 ---
 
@@ -151,6 +169,7 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 ### Create Product
 
 - `POST /products/create`
+- Auth: required + `ADMIN` role (`401` if not logged in, `403` if not admin)
 - Content-Type: `multipart/form-data`
 - Form fields:
   - `productName` (string, required, unique, min length 5)
@@ -192,6 +211,7 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 ### Delete Product
 
 - `DELETE /products/delete/:id`
+- Auth: required + `ADMIN` role (`401` if not logged in, `403` if not admin)
 - Parameters:
   - `id` - product MongoDB `_id`
 - Success response:
@@ -257,25 +277,28 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 - Content-Type: `application/json`
 - Body:
   - `paymentMethod` (string, optional, defaults to `CASH_ON_DELIVERY`, must be either `CASH_ON_DELIVERY` or `ONLINE`)
+  - `address` (string, optional, min 10 characters — overrides the address saved on the user profile)
 - Behavior:
   - Generates an order from the authenticated user's cart
-  - Uses the cart items and user address
+  - Uses the cart items and the address from the body (falling back to the user profile address)
   - Calculates `TotalPrice` automatically
+  - Clears the cart after the order is placed
 
 - Success response:
   - `201 Created`
   - `{ success: true, message: 'order created successfully', data: order }`
 
-- Important:
-  - The cart is not cleared automatically after order creation by current backend logic.
+- Error responses:
+  - `400` if the cart is empty, the address is missing/too short, or the payment method is invalid
 
 ### Get User Orders
 
 - `GET /user/`
-- Returns all orders for the authenticated user
+- Returns all orders for the authenticated user, newest first
 - Success response:
   - `200 OK`
   - `{ success: true, message: 'orders fetched successfully', data: [ orders ] }`
+  - `data` is an empty array `[]` when the user has no orders (this is NOT an error)
 
 ### Get Order Details
 
@@ -291,7 +314,7 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 - `PATCH /user/:orderId/status`
 - Content-Type: `application/json`
 - Body:
-  - `status` (string)
+  - `status` (string, required)
 - Allowed status values:
   - `ORDERED`
   - `CANCELLED`
@@ -301,15 +324,20 @@ The current backend allows CORS from `http://localhost:5173` and sends cookies, 
 - Success response:
   - `200 OK`
   - `{ success: true, message: 'order updated successfully', data: order }`
+- Error responses:
+  - `400` if the status value is not one of the allowed values
+  - `404` if the order does not exist
 
 ---
 
 ## Authentication Details
 
-- Login stores a JWT in a cookie named `token`.
-- Protected routes use `isLoggedIn` middleware.
-- The middleware checks `req.cookies.token` and verifies it with `SECRET_KEY`.
-- If the token is missing or invalid, the request returns `401 Unauthorized`.
+- Login stores a JWT in a cookie named `token`. The cookie is `httpOnly` and persists for 7 days (matches `JWT_EXPIRY`).
+- In production the cookie is set with `sameSite: 'none'` + `secure: true` (cross-site frontend), in development with `sameSite: 'lax'`.
+- The middleware also accepts an `Authorization: Bearer <token>` header as a fallback to the cookie.
+- Protected routes use `isLoggedIn` middleware; admin-only routes additionally use `isAdmin`.
+- If the token is missing or invalid, the request returns `401 Unauthorized` with `{ success: false, message }`.
+- All error responses across the API use the shape `{ success: false, message }`.
 - Frontend must send requests with credentials enabled:
 
 ```js
@@ -370,13 +398,15 @@ Properties:
 ## Frontend Integration Notes
 
 - The backend is cookie-based auth. Use `credentials: 'include'` for login and protected requests.
-- Use `/auth/login` to sign in and `/auth/logout` to sign out.
+- Use `/auth/login` to sign in, `/auth/logout` to sign out, and `GET /auth/verify` on app load to restore the session.
 - After registration, login is still required to receive the `token` cookie.
 - The cart endpoints work from the logged-in user's cart, so the frontend should not send user IDs directly.
-- Product creation requires multipart upload with `image` as the file field.
+- Product creation requires multipart upload with `image` as the file field (max 5MB, images only) and an ADMIN account.
 - `GET /products` returns all products; `GET /products/:id` returns a single pizza product.
-- `POST /user/` creates an order from the current cart. The frontend should allow users to choose a payment method and display the cart total.
-- `PATCH /user/:orderId/status` does not enforce admin-only access in current backend code, so the frontend should treat it carefully.
+- `POST /user/` creates an order from the current cart and clears the cart. The frontend should allow users to choose a payment method, optionally pass a delivery `address`, and display the cart total.
+- `GET /user/` returns `data: []` when there are no orders — render an empty state, not an error toast.
+- Cart/order items may contain `product: null` if a product was deleted from the store — always guard against it.
+- Product `image` URLs from new uploads are HTTPS Cloudinary URLs. Older records may still hold `http://` URLs — replace `http://res.cloudinary.com` with `https://res.cloudinary.com` before rendering.
 
 ---
 

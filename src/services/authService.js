@@ -10,7 +10,7 @@ async function loginUser(userDetails){
     const user=await findUser({email});
     if(!user){
         throw{message:"user with the given email not found" ,statuscode: 404};
-        
+
     }
 
     const isPasswordvalid=await bcrypt.compare(password,user.password);
@@ -20,7 +20,7 @@ async function loginUser(userDetails){
     const Role=user.role? user.role: "USER";
 
     const token=jwt.sign({email:user.email,id:user._id,role:Role},SECRET_KEY,{expiresIn:JWT_EXPIRY});
-    return {token,Role,userData:{email:user.email,firstName:user.firstName}};
+    return {token,Role,userData:{id:user._id,email:user.email,firstName:user.firstName}};
 
 }
 module.exports=loginUser;

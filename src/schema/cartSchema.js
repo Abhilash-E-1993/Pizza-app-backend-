@@ -4,7 +4,8 @@ const cartSchema=new mongoose.Schema({
     userId:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'User',
-        required:true
+        required:true,
+        unique:true // one cart per user + fast lookups by userId
     },
     items:[
         {

@@ -5,15 +5,15 @@ async function createProduct(productData) {
 }
 
 async function getProduct(productId) {
-  return Product.findById(productId);
+  return Product.findById(productId).lean();
 }
 
 async function deleteProduct(productId) {
-  return Product.findByIdAndDelete(productId);
+  return Product.findByIdAndDelete(productId).lean();
 }
 
 async function getAllProducts() {
-  return Product.find({});
+  return Product.find({}).lean();
 }
 
 module.exports = {

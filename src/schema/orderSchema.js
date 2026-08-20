@@ -4,7 +4,8 @@ const OrderSchema=new mongoose.Schema({
     userId:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'User',
-        requiured:true
+        required:true, // fixed typo: was "requiured" so it never applied
+        index:true // fast lookups of a user's orders
     },
     items:[
             {
